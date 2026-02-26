@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Arquitetura — Expenses Classifier</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;600;700&display=swap');
+
+  :root {
+    --bg: #0d0f14;
+    --surface: #161920;
+    --border: #252932;
+    --accent: #f97316;
+    --accent2: #3b82f6;
+    --accent3: #22c55e;
+    --accent4: #a855f7;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'IBM Plex Sans', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    padding: 40px 24px 80px;
+  }
+
+  header {
+    max-width: 900px;
+    margin: 0 auto 48px;
+  }
+
+  .tag {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--accent);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+
+  h1 {
+    font-size: 32px;
+    font-weight: 700;
+    line-height: 1.2;
+    margin-bottom: 8px;
+  }
+
+  h1 span { color: var(--accent); }
+
+  .subtitle {
+    color: var(--muted);
+    font-size: 15px;
+    font-weight: 300;
+  }
+
+  .diagram {
+    max-width: 900px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  /* FLOW ARROW */
+  .arrow {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 32px;
+    color: var(--muted);
+    font-size: 20px;
+    position: relative;
+  }
+
+  .arrow::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: linear-gradient(to bottom, transparent, var(--border), transparent);
+  }
+
+  /* LAYER CARD */
+  .layer {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface);
+    overflow: hidden;
+    transition: border-color 0.2s;
+    cursor: pointer;
+  }
+
+  .layer:hover { border-color: var(--accent); }
+  .layer:hover .layer-header { background: rgba(249,115,22,0.06); }
+
+  .layer-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.2s;
+  }
+
+  .layer-num {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    min-width: 24px;
+  }
+
+  .layer-icon {
+    font-size: 22px;
+    min-width: 28px;
+    text-align: center;
+  }
+
+  .layer-title {
+    font-size: 16px;
+    font-weight: 600;
+    flex: 1;
+  }
+
+  .layer-tech {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    padding: 3px 10px;
+    border-radius: 20px;
+  }
+
+  .layer-body {
+    padding: 16px 20px 20px 62px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .layer-body.single { grid-template-columns: 1fr; }
+  .layer-body.triple { grid-template-columns: 1fr 1fr 1fr; }
+
+  .card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+  }
+
+  .card-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .card-title .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .dot-orange { background: var(--accent); }
+  .dot-blue   { background: var(--accent2); }
+  .dot-green  { background: var(--accent3); }
+  .dot-purple { background: var(--accent4); }
+
+  .card p {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  .card code {
+    font-family: var(--mono);
+    font-size: 11px;
+    background: rgba(249,115,22,0.1);
+    color: var(--accent);
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+
+  /* Special: classification layers */
+  .classif-layers {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    grid-column: 1 / -1;
+  }
+
+  .classif-row {
+    display: flex;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .classif-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    writing-mode: horizontal-tb;
+    display: flex;
+    align-items: center;
+    min-width: 48px;
+    padding-right: 4px;
+  }
+
+  .classif-card {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .classif-card .badge {
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 20px;
+    flex-shrink: 0;
+  }
+
+  .badge-orange { background: rgba(249,115,22,0.15); color: var(--accent); border: 1px solid rgba(249,115,22,0.3); }
+  .badge-blue   { background: rgba(59,130,246,0.15); color: var(--accent2); border: 1px solid rgba(59,130,246,0.3); }
+  .badge-purple { background: rgba(168,85,247,0.15); color: var(--accent4); border: 1px solid rgba(168,85,247,0.3); }
+
+  .classif-card p {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  /* Storage section */
+  .storage-row {
+    display: flex;
+    gap: 8px;
+    grid-column: 1 / -1;
+  }
+
+  .storage-item {
+    flex: 1;
+    background: var(--bg);
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    text-align: center;
+  }
+
+  .storage-item .s-icon { font-size: 20px; margin-bottom: 6px; }
+  .storage-item .s-name { font-family: var(--mono); font-size: 12px; color: var(--text); margin-bottom: 4px; }
+  .storage-item .s-desc { font-size: 11px; color: var(--muted); }
+
+  /* Legend */
+  .legend {
+    max-width: 900px;
+    margin: 32px auto 0;
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    padding: 16px 20px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+
+  .legend-title {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    width: 100%;
+    margin-bottom: 4px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .legend-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+  }
+
+  /* Section divider label */
+  .divider-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 16px 0 8px;
+  }
+
+  .divider-label span {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .divider-line {
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  @media (max-width: 600px) {
+    .layer-body { grid-template-columns: 1fr; }
+    .layer-body.triple { grid-template-columns: 1fr; }
+    .storage-row { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="tag">Arquitetura do Projeto</div>
+  <h1>Expenses <span>Classifier</span></h1>
+  <p class="subtitle">Visão geral do sistema antes de começar a codar — revise e aprove cada camada</p>
+</header>
+
+<div class="diagram">
+
+  <!-- LAYER 1: INGESTION -->
+  <div class="layer">
+    <div class="layer-header">
+      <span class="layer-num">01</span>
+      <span class="layer-icon">📥</span>
+      <span class="layer-title">Ingestão</span>
+      <span class="layer-tech">pandas · openpyxl · pdfplumber</span>
+    </div>
+    <div class="layer-body">
+
+      <div class="card" style="grid-column: 1 / -1;">
+        <div class="card-title"><span class="dot dot-orange"></span> Formatos aceitos</div>
+        <div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;">
+          <span style="font-family:var(--mono);font-size:11px;background:rgba(34,197,94,0.1);color:var(--accent3);border:1px solid rgba(34,197,94,0.3);padding:3px 10px;border-radius:20px;">✓ CSV</span>
+          <span style="font-family:var(--mono);font-size:11px;background:rgba(34,197,94,0.1);color:var(--accent3);border:1px solid rgba(34,197,94,0.3);padding:3px 10px;border-radius:20px;">✓ XLS</span>
+          <span style="font-family:var(--mono);font-size:11px;background:rgba(34,197,94,0.1);color:var(--accent3);border:1px solid rgba(34,197,94,0.3);padding:3px 10px;border-radius:20px;">✓ XLSX</span>
+          <span style="font-family:var(--mono);font-size:11px;background:rgba(249,115,22,0.1);color:var(--accent);border:1px solid rgba(249,115,22,0.3);padding:3px 10px;border-radius:20px;">⚠ PDF (melhor esforço)</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><span class="dot dot-orange"></span> Lógica de leitura por formato</div>
+        <p style="line-height:1.8">
+          <code>CSV</code> → pandas direto<br>
+          <code>XLS/XLSX</code> → openpyxl + pandas<br>
+          <code>PDF</code> → pdfplumber tenta extrair tabelas; se falhar, avisa você e pede para converter manualmente em CSV/XLSX
+        </p>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><span class="dot dot-orange"></span> Normalização</div>
+        <p>Tudo vira o mesmo formato: <code>data</code> · <code>descrição</code> · <code>valor</code> · <code>tipo</code> · <code>origem</code> · <code>moeda</code></p>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="arrow">↓</div>
+
+  <!-- LAYER 1B: HUMAN IMPORT VALIDATION -->
+  <div class="layer" style="border-color: rgba(59,130,246,0.4);">
+    <div class="layer-header" style="background: rgba(59,130,246,0.04);">
+      <span class="layer-num">01b</span>
+      <span class="layer-icon">🔍</span>
+      <span class="layer-title">Validação da Importação</span>
+      <span class="layer-tech">Streamlit · revisão humana</span>
+    </div>
+    <div class="layer-body">
+      <div class="card">
+        <div class="card-title"><span class="dot dot-blue"></span> Prévia antes de salvar</div>
+        <p>Antes de qualquer dado ir para o banco, você vê uma tabela com as primeiras linhas importadas para confirmar que a leitura está correta: datas, valores e descrições fazem sentido?</p>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="dot dot-blue"></span> Ações disponíveis</div>
+        <p>
+          <strong style="color:var(--accent3)">✓ Confirmar</strong> — salva no banco e segue para classificação<br><br>
+          <strong style="color:var(--accent)">✗ Rejeitar</strong> — descarta e exibe mensagem de erro orientando a conversão manual
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <div class="arrow">↓</div>
+
+  <!-- LAYER 2: CLASSIFICATION -->
+  <div class="layer">
+    <div class="layer-header">
+      <span class="layer-num">02</span>
+      <span class="layer-icon">🏷️</span>
+      <span class="layer-title">Classificação</span>
+      <span class="layer-tech">regras + LLM</span>
+    </div>
+    <div class="layer-body single">
+      <div class="classif-layers">
+
+        <div class="classif-row">
+          <div class="classif-card">
+            <span class="badge badge-orange">1ª camada</span>
+            <p><strong style="color:var(--text)">Motor de Regras</strong> — Regex simples. Ex: "IFOOD" → Restaurante, "UBER" → Transporte. Resolve ~70% das transações. Rápido e explicável.</p>
+          </div>
+        </div>
+
+        <div class="classif-row">
+          <div class="classif-card">
+            <span class="badge badge-purple">2ª camada</span>
+            <p><strong style="color:var(--text)">LLM Fallback</strong> — Para o que as regras não pegam: descrições bagunçadas, compras internacionais, lançamentos raros. Usa a API do Claude com saída estruturada.</p>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="card" style="margin-top: 4px;">
+        <div class="card-title"><span class="dot dot-green"></span> Categorias (em português)</div>
+        <p>Moradia · Mercado · Transporte · Restaurantes · Saúde · Assinaturas · Educação · Viagens · Transferências · Outros</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="arrow">↓</div>
+
+  <!-- LAYER 3: HUMAN REVIEW -->
+  <div class="layer">
+    <div class="layer-header">
+      <span class="layer-num">03</span>
+      <span class="layer-icon">👀</span>
+      <span class="layer-title">Revisão Humana</span>
+      <span class="layer-tech">Streamlit</span>
+    </div>
+    <div class="layer-body">
+      <div class="card">
+        <div class="card-title"><span class="dot dot-blue"></span> Tela de Revisão</div>
+        <p>Lista de transações pendentes com sugestão de categoria e botões rápidos para aprovar ou corrigir.</p>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="dot dot-blue"></span> Loop de Aprendizado</div>
+        <p>Cada correção sua vira uma nova regra. A ferramenta pergunta: "criar regra para NETFLIX → Assinaturas?"</p>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="dot dot-blue"></span> Gestão de Regras</div>
+        <p>Tela para ver, editar e ativar/desativar as regras existentes.</p>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="dot dot-blue"></span> Dashboard Mensal</div>
+        <p>Gráficos simples de gasto por categoria. Filtro por mês e conta.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="arrow">↓</div>
+
+  <!-- LAYER 3B: REGIME -->
+  <div class="layer" style="border-color: rgba(168,85,247,0.4);">
+    <div class="layer-header" style="background: rgba(168,85,247,0.04);">
+      <span class="layer-num">03b</span>
+      <span class="layer-icon">📅</span>
+      <span class="layer-title">Regime Contábil</span>
+      <span class="layer-tech">caixa · competência</span>
+    </div>
+    <div class="layer-body">
+
+      <div class="card" style="grid-column: 1 / -1;">
+        <div class="card-title"><span class="dot dot-purple"></span> Duas formas de ver o mesmo gasto</div>
+        <p style="line-height:1.8">Cada transação armazena <strong style="color:var(--text)">duas datas</strong> e o sistema deixa você escolher qual perspectiva quer em cada visualização ou relatório.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><span class="dot dot-purple"></span> 💵 Regime de Caixa</div>
+        <p style="line-height:1.8">
+          Mostra <strong style="color:var(--text)">quando o dinheiro saiu da sua conta</strong> de verdade.<br><br>
+          Cartão de crédito → data do vencimento da fatura<br>
+          Parcela → data de cada desembolso<br><br>
+          <em style="color:var(--muted)">Ideal para: Fluxo de Caixa</em>
+        </p>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><span class="dot dot-purple"></span> 📊 Regime de Competência</div>
+        <p style="line-height:1.8">
+          Mostra <strong style="color:var(--text)">quando o gasto aconteceu de fato</strong>.<br><br>
+          Cartão de crédito → data da compra<br>
+          Parcela → valor total na data da compra<br><br>
+          <em style="color:var(--muted)">Ideal para: DRE, Balanço Patrimonial</em>
+        </p>
+      </div>
+
+      <div class="card" style="grid-column: 1 / -1;">
+        <div class="card-title"><span class="dot dot-purple"></span> Como o sistema lida com parcelas</div>
+        <p style="line-height:1.8">
+          O extrato pode vir de formas diferentes dependendo do banco. A ferramenta tenta detectar automaticamente. O que não conseguir, você preenche na tela de validação da importação.<br><br>
+          <strong style="color:var(--text)">Extrato mostra cada parcela separada</strong> (ex: "Parcela 2/6 — R$50") → sistema agrupa e reconstrói o gasto original<br>
+          <strong style="color:var(--text)">Extrato mostra só o total</strong> (ex: "Compra — R$300 / 6x") → sistema detecta o padrão e cria as parcelas futuras automaticamente
+        </p>
+      </div>
+
+      <div class="card" style="grid-column: 1 / -1; border-color: rgba(168,85,247,0.3);">
+        <div class="card-title"><span class="dot dot-purple"></span> 🗓️ Diferimento de Despesa (Despesas Antecipadas)</div>
+        <p style="line-height:1.8; margin-bottom: 10px;">
+          Para gastos pagos de uma vez mas com competência distribuída no tempo — como antivírus anual, OneDrive, seguro, etc.
+        </p>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+          <div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:10px;">
+            <p style="color:var(--text);font-size:12px;font-weight:600;margin-bottom:4px;">💵 No Caixa</p>
+            <p>Aparece integralmente no mês em que você pagou. Ex: R$120 em janeiro.</p>
+          </div>
+          <div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:10px;">
+            <p style="color:var(--text);font-size:12px;font-weight:600;margin-bottom:4px;">📊 Na Competência</p>
+            <p>Distribuído pelo período que você definir. Ex: R$10/mês por 12 meses.</p>
+          </div>
+        </div>
+        <div style="margin-top:10px;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:10px;">
+          <p style="color:var(--text);font-size:12px;font-weight:600;margin-bottom:6px;">⚙️ Como funciona na prática</p>
+          <p style="line-height:1.8">
+            Na tela de revisão, você vê o gasto e decide marcar como <code>diferir</code>.<br>
+            Você define: <strong style="color:var(--text)">data de início</strong> + <strong style="color:var(--text)">data de fim</strong> (ou número de meses).<br>
+            O sistema divide o valor igualmente e cria as competências mensais automaticamente.<br>
+            O saldo ainda não apropriado fica registrado como <strong style="color:var(--text)">ativo (despesa pré-paga)</strong> no Balanço Patrimonial.
+          </p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="arrow">↓</div>
+
+  <!-- LAYER 4: STORAGE -->
+  <div class="layer">
+    <div class="layer-header">
+      <span class="layer-num">04</span>
+      <span class="layer-icon">💾</span>
+      <span class="layer-title">Armazenamento</span>
+      <span class="layer-tech">SQLite</span>
+    </div>
+    <div class="layer-body single">
+      <div class="storage-row">
+        <div class="storage-item">
+          <div class="s-icon">📋</div>
+          <div class="s-name">transacoes.db</div>
+          <div class="s-desc">Transações com data do gasto + data do desembolso</div>
+        </div>
+        <div class="storage-item">
+          <div class="s-icon">🔢</div>
+          <div class="s-name">parcelas.db</div>
+          <div class="s-desc">Compras parceladas com cada desembolso futuro mapeado</div>
+        </div>
+        <div class="storage-item">
+          <div class="s-icon">🗓️</div>
+          <div class="s-name">diferimentos.db</div>
+          <div class="s-desc">Despesas antecipadas com período e competências mensais geradas</div>
+        </div>
+        <div class="storage-item">
+          <div class="s-icon">📏</div>
+          <div class="s-name">regras.json</div>
+          <div class="s-desc">Motor de regras regex — editável pelo Streamlit</div>
+        </div>
+        <div class="storage-item">
+          <div class="s-icon">🏪</div>
+          <div class="s-name">merchants.db</div>
+          <div class="s-desc">Cadastro de estabelecimentos → categoria padrão</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="arrow">↓</div>
+
+  <!-- LAYER 5: EXPORT -->
+  <div class="layer">
+    <div class="layer-header">
+      <span class="layer-num">05</span>
+      <span class="layer-icon">📤</span>
+      <span class="layer-title">Visualização & Exportação</span>
+      <span class="layer-tech">pandas · openpyxl</span>
+    </div>
+    <div class="layer-body">
+      <div class="card">
+        <div class="card-title"><span class="dot dot-green"></span> Seletor de regime</div>
+        <p>Em qualquer tela, você escolhe visualizar por <strong style="color:var(--text)">Caixa</strong> ou por <strong style="color:var(--text)">Competência</strong>. O sistema recalcula tudo automaticamente.</p>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="dot dot-green"></span> CSV / Excel</div>
+        <p>Exportar por mês ou período, com todas as categorias e regime escolhido já aplicados.</p>
+      </div>
+      <div class="card" style="grid-column: 1 / -1;">
+        <div class="card-title"><span class="dot dot-green"></span> Demonstrativos financeiros (fases futuras)</div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:10px;">
+          <div>
+            <p style="color:var(--text);font-size:12px;font-weight:600;margin-bottom:4px;">📊 DRE</p>
+            <p>Receitas vs Despesas por categoria e período. Regime de competência.</p>
+          </div>
+          <div>
+            <p style="color:var(--text);font-size:12px;font-weight:600;margin-bottom:4px;">💵 Fluxo de Caixa</p>
+            <p>Entradas e saídas reais de dinheiro por data de desembolso. Regime de caixa.</p>
+          </div>
+          <div>
+            <p style="color:var(--text);font-size:12px;font-weight:600;margin-bottom:4px;">⚖️ Balanço Patrimonial</p>
+            <p>Ativos, passivos e patrimônio líquido. Parcelas futuras entram como passivo.</p>
+          </div>
+          <div>
+            <p style="color:var(--text);font-size:12px;font-weight:600;margin-bottom:4px;">🎯 Orçamento vs Realizado</p>
+            <p>Quanto você planejou gastar por categoria vs o que realmente aconteceu.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- LEGEND -->
+<div class="legend">
+  <div class="legend-title">Legenda de tecnologias</div>
+  <div class="legend-item"><span class="legend-dot" style="background:var(--accent)"></span> Python 3.11 — linguagem base</div>
+  <div class="legend-item"><span class="legend-dot" style="background:var(--accent2)"></span> Streamlit — interface visual</div>
+  <div class="legend-item"><span class="legend-dot" style="background:var(--accent3)"></span> pandas — manipulação de dados</div>
+  <div class="legend-item"><span class="legend-dot" style="background:var(--accent4)"></span> Claude API — LLM fallback</div>
+  <div class="legend-item"><span class="legend-dot" style="background:var(--muted)"></span> SQLite — banco de dados local</div>
+  <div class="legend-item"><span class="legend-dot" style="background:#f59e0b"></span> openpyxl — leitura de XLS/XLSX</div>
+  <div class="legend-item"><span class="legend-dot" style="background:#ec4899"></span> pdfplumber — extração de PDF</div>
+</div>
+
+<!-- FOLDER STRUCTURE -->
+<div class="diagram" style="margin-top: 32px;">
+  <div class="layer">
+    <div class="layer-header">
+      <span class="layer-num">📁</span>
+      <span class="layer-icon"></span>
+      <span class="layer-title">Estrutura de Pastas</span>
+      <span class="layer-tech">proposta</span>
+    </div>
+    <div class="layer-body single">
+      <div class="card">
+        <pre style="font-family: var(--mono); font-size: 12px; color: var(--muted); line-height: 1.9;">
+<span style="color:var(--accent)">Expenses Classifier/</span>
+├── <span style="color:var(--accent2)">app.py</span>                 ← ponto de entrada do Streamlit
+├── <span style="color:var(--accent2)">requirements.txt</span>       ← pandas, openpyxl, pdfplumber, streamlit...
+│
+├── <span style="color:var(--accent3)">data/</span>
+│   ├── extratos/          ← seus CSVs ficam aqui
+│   └── exports/           ← relatórios gerados
+│
+├── <span style="color:var(--accent3)">db/</span>
+│   ├── transacoes.db      ← transações (data gasto + data desembolso)
+│   ├── parcelas.db        ← compras parceladas e desembolsos futuros
+│   ├── diferimentos.db    ← despesas antecipadas e competências mensais
+│   └── merchants.db       ← merchants cadastrados
+│
+├── <span style="color:var(--accent3)">rules/</span>
+│   └── regras.json        ← motor de regras editável
+│
+└── <span style="color:var(--accent3)">src/</span>
+    ├── ingestion.py       ← lê CSV, XLS, XLSX e PDF
+    ├── classifier.py      ← regras + LLM fallback
+    ├── installments.py    ← detecta e mapeia parcelas
+    ├── deferral.py        ← diferimento de despesas antecipadas
+    ├── regime.py          ← caixa vs competência
+    ├── learning.py        ← salva correções como regras
+    └── exporter.py        ← gera CSV/Excel e demonstrativos</pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- BUILD ORDER -->
+<div class="diagram" style="margin-top: 32px;">
+  <div class="layer">
+    <div class="layer-header">
+      <span class="layer-num">🗓️</span>
+      <span class="layer-icon"></span>
+      <span class="layer-title">Ordem de Construção (MVP)</span>
+      <span class="layer-tech">recomendada</span>
+    </div>
+    <div class="layer-body triple">
+      <div class="card">
+        <div class="card-title"><span class="dot dot-orange"></span> Semana 1</div>
+        <p>Ingestão CSV/XLS/XLSX + validação humana da importação + salvar no SQLite. <strong style="color:var(--text)">Meta:</strong> ver suas transações em tabela na tela.</p>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="dot dot-blue"></span> Semana 2</div>
+        <p>Motor de regras + classificação + tela Streamlit de revisão. <strong style="color:var(--text)">Meta:</strong> aprovar/corrigir categorias na interface.</p>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="dot dot-green"></span> Semana 3</div>
+        <p>Detecção de parcelas + regime caixa vs competência + LLM fallback + exportação. <strong style="color:var(--text)">Meta:</strong> MVP completo com as duas visões funcionando.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
